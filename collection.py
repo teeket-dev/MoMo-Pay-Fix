@@ -21,12 +21,12 @@ class Collection(MomoBase):
         if os.path.isfile(env_file):
             env.read_env(env_file)
 
-        # self.subscription_product_key = os.environ.get('MTN_COLLECTION_KEY', None)
-        # self.api_key =  os.environ.get('MTN_COLLECTION_API_KEY', None)
-        # self.api_user =  os.environ.get('MTN_COLLECTION_API_USER', None)
-        # self.environment_mode =  os.environ.get('MTN_ENVIRONMENT', None)
-        # self.callback_url =  os.environ.get('MTN_CALLBACK_URL', None)
-        # self.base_url = 'https://sandbox.momodeveloper.mtn.com'
+        self.subscription_product_key = os.environ.get('MTN_COLLECTION_KEY', None)
+        self.api_key =  os.environ.get('MTN_COLLECTION_API_KEY', None)
+        self.api_user =  os.environ.get('MTN_COLLECTION_API_USER', None)
+        self.environment_mode =  os.environ.get('MTN_ENVIRONMENT', None)
+        self.callback_url =  os.environ.get('MTN_CALLBACK_URL', None)
+        self.base_url = 'https://sandbox.momodeveloper.mtn.com'
 
         # end here
     
