@@ -1,73 +1,47 @@
-import requests
+import requests #type:ignore
 import json
 import uuid
-from basicauth import encode
-from decouple import config
+from momo_base import MomoBase 
 
+class Collection(MomoBase):
+    def configure_credentials(self):
+        self.product = 'collection'
+        # self.subscription_product_key = config('COLLECTIONS_SUBKEY')
+        # self.api_key = config('COLLECTION_API_SECRET')
+        # self.api_user = config('COLLECTION_USER_ID')
+        # self.environment_mode = config('MTN_ENVIRONMENT_MODE')
+        # self.callback_url = config('MTN_CALLBACK_URL')
 
-class Collection:
-    def __init__(self):
-        self.collections_primary_key = config('COLLECTIONS_SUBKEY')
-        self.api_key_collections = config('COLLECTION_API_SECRET')
-        self.collections_apiuser = config('COLLECTION_USER_ID')
-        self.environment_mode = config('MTN_ENVIRONMENT_MODE')
-        self.callback_url = config('MTN_CALLBACK_URL')
-        self.base_url = 'https://proxy.momoapi.mtn.com'
+        # remove the below code when adding to the teeket main repo
 
-        if self.environment_mode == "sandbox":
-            self.base_url = "https://sandbox.momodeveloper.mtn.com"
+        import environ # type:ignore
+        import os 
+        env = environ.Env()
+        env_file = os.path.join('', ".env.local")
+        if os.path.isfile(env_file):
+            env.read_env(env_file)
 
-        # Generate Basic authorization key when in test mode
-        if self.environment_mode == "sandbox":
-            self.collections_apiuser = str(uuid.uuid4())
+        # self.subscription_product_key = os.environ.get('MTN_COLLECTION_KEY', None)
+        # self.api_key =  os.environ.get('MTN_COLLECTION_API_KEY', None)
+        # self.api_user =  os.environ.get('MTN_COLLECTION_API_USER', None)
+        # self.environment_mode =  os.environ.get('MTN_ENVIRONMENT', None)
+        # self.callback_url =  os.environ.get('MTN_CALLBACK_URL', None)
+        # self.base_url = 'https://sandbox.momodeveloper.mtn.com'
 
-        # Create API user
-        self.url = ""+str(self.base_url)+"/v1_0/apiuser"
-        payload = json.dumps({
-            "providerCallbackHost": 'URL of host ie google.com'
-        })
-        self.headers = {
-            'X-Reference-Id': self.collections_apiuser,
+        # end here
+    
+    def get_headers(self):
+        return {
+            'X-Target-Environment': self.environment_mode,
+            # 'X-Callback-Url': self.callback_url,
+            'Ocp-Apim-Subscription-Key': self.subscription_product_key,
             'Content-Type': 'application/json',
-            'Ocp-Apim-Subscription-Key': self.collections_primary_key
+            'Authorization': "Bearer "+str(self.get_authentication_token()["access_token"])
         }
-        response = requests.request(
-            "POST", self.url, headers=self.headers, data=payload)
-
-        # Create API key
-        self.url = ""+str(self.base_url)+"/v1_0/apiuser/" + \
-            str(self.collections_apiuser)+"/apikey"
-        payload = {}
-        self.headers = {
-            'Ocp-Apim-Subscription-Key': self.collections_primary_key
-        }
-        response = requests.request(
-            "POST", self.url, headers=self.headers, data=payload)
-        response = response.json()
-
-        # Auto-generate when in test mode
-        if self.environment_mode == "sandbox":
-            self.api_key_collections = str(response["apiKey"])
-
-        # Create basic key for Collections
-        self.username, self.password = self.collections_apiuser, self.api_key_collections
-        self.basic_authorisation_collections = str(
-            encode(self.username, self.password))
-
-    def authToken(self):
-        url = ""+str(self.base_url)+"/collection/token/"
-        payload = {}
-        headers = {
-            'Ocp-Apim-Subscription-Key': self.collections_primary_key,
-            'Authorization': str(self.basic_authorisation_collections)
-        }
-        response = requests.request("POST", url, headers=headers, data=payload)
-        authorization_token = response.json()
-        return authorization_token
-
+    
     def requestToPay(self, amount, phone_number, external_id, payernote="SPARCO", payermessage="SPARCOPAY", currency="EUR"):
-        uuidgen = str(uuid.uuid4())
-        url = ""+str(self.base_url)+"/collection/v1_0/requesttopay"
+        reference_id = str(uuid.uuid4())
+        url = f"{self.base_url}/{self.product}/v1_0/requesttopay"
         payload = json.dumps({
             "amount": amount,
             "currency": currency,
@@ -79,39 +53,27 @@ class Collection:
             "payerMessage": payermessage,
             "payeeNote": payernote
         })
-        headers = {
-            'X-Reference-Id': uuidgen,
-            'X-Target-Environment': self.environment_mode,
-            # 'X-Callback-Url': self.callback_url,
-            'Ocp-Apim-Subscription-Key': self.collections_primary_key,
-            'Content-Type': 'application/json',
-            'Authorization': "Bearer "+str(self.authToken()["access_token"])
-        }
+        headers = self.get_headers()
+        headers.update({
+            'X-Reference-Id': reference_id,
+        })
         response = requests.request("POST", url, headers=headers, data=payload)
-        context = {"status_code": response.status_code, "ref": uuidgen}
+        context = {"status_code": response.status_code, "ref": reference_id}
         return context
-
+    
     def getTransactionStatus(self, txn):
-        url = ""+str(self.base_url)+"/collection/v1_0/requesttopay/"+str(txn)
+        url = f"{self.base_url}/{self.product}/v1_0/requesttopay/"+str(txn)
         payload = {}
-        headers = {
-            'Ocp-Apim-Subscription-Key': self.collections_primary_key,
-            'Authorization': "Bearer "+str(self.authToken()["access_token"]),
-            'X-Target-Environment': self.environment_mode,
-        }
+        headers = self.get_headers()
         response = requests.request("GET", url, headers=headers, data=payload)
         json_respon = response.json()
         return json_respon
-
-    # Check momo collections balance
+    
     def getBalance(self):
-        url = ""+str(self.base_url)+"/collection/v1_0/account/balance"
+        url = f"{self.base_url}/{self.product}/v1_0/account/balance"
         payload = {}
-        headers = {
-            'Ocp-Apim-Subscription-Key': self.collections_primary_key,
-            'Authorization':  "Bearer "+str(self.authToken()["access_token"]),
-            'X-Target-Environment': self.environment_mode,
-        }
+        headers = self.get_headers()
         response = requests.request("GET", url, headers=headers, data=payload)
         json_respon = response.json()
         return json_respon
+    
